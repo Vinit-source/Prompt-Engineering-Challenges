@@ -1,5 +1,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
+import AuthForm from './components/AuthForm';
+import LogoutButton from './components/LogoutButton';
+import { login, signup, logout, getCurrentUser, User } from './services/authService';
 import { Challenge, ChallengeStatus, AnalysisResult } from './types';
 import { CHALLENGES, PASS_THRESHOLD } from './constants';
 import ChallengeSelector from './components/ChallengeSelector';
@@ -101,6 +104,9 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [loadingMessage, setLoadingMessage] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
+  const [user, setUser] = useState<User | null>(getCurrentUser());
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
 
   useEffect(() => {
     // Check for API key and initialize
@@ -136,6 +142,21 @@ const App: React.FC = () => {
       setChallengeStatuses(initialStatuses);
     }
   }, []);
+  // Auth handlers
+  const handleLogin = async (username: string, password: string) => {
+    const loggedInUser = await login(username, password);
+    setUser(loggedInUser);
+  };
+
+  const handleSignup = async (username: string, password: string) => {
+    const signedUpUser = await signup(username, password);
+    setUser(signedUpUser);
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    setUser(null);
+  };
 
   useEffect(() => {
     if(challengeStatuses.length > 0) {
@@ -217,54 +238,104 @@ const App: React.FC = () => {
 
   return (
     <>
-      <ApiKeyModal
-        isOpen={isModalOpen}
-        onSave={handleSaveApiKey}
-        onClose={() => setIsModalOpen(false)}
-        isClosable={isInitialized}
-      />
-      {isInitialized && (
-        <div className="min-h-screen bg-gray-dark font-sans text-gray-light">
-          <header className="py-4 px-8 bg-gray-medium/30 border-b border-gray-medium flex justify-between items-center">
-            <h1 className="text-3xl font-bold text-white tracking-wider">
-              <span className="text-brand-primary">Prompt</span> Engineering Challenge
-            </h1>
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="py-2 px-4 bg-gray-medium hover:bg-gray-light/20 text-white text-sm font-semibold rounded-lg transition-colors"
-              aria-label="Change API Key"
-            >
-              Change API Key
-            </button>
-          </header>
-          <main className="flex flex-col md:flex-row p-4 md:p-8 gap-8">
-            <aside className="w-full md:w-1/4 lg:w-1/5">
-              <ChallengeSelector
-                challenges={CHALLENGES}
-                statuses={challengeStatuses}
-                currentChallengeId={currentChallenge.id}
-                onSelectChallenge={handleSelectChallenge}
-              />
-            </aside>
-            <div className="flex-1">
-              {currentChallenge && (
-                <ChallengeView
-                  challenge={currentChallenge}
-                  prompt={prompt}
-                  onPromptChange={setPrompt}
-                  onGenerate={handleGenerateAndAnalyze}
-                  isLoading={isLoading}
-                  loadingMessage={loadingMessage}
-                  generatedImage={generatedImage}
-                  analysisResult={analysisResult}
-                  error={error}
-                  onNextChallenge={handleNextChallenge}
-                  isPassed={!!analysisResult && analysisResult.similarityScore >= PASS_THRESHOLD}
-                />
-              )}
+      {!user ? (
+        <div className="min-h-screen bg-gray-dark font-sans text-gray-light flex flex-col items-center justify-center">
+          <div className="bg-gray-medium rounded-lg shadow-2xl p-8 w-full max-w-md space-y-6">
+            <AuthForm
+              onSubmit={authMode === 'login' ? handleLogin : handleSignup}
+              type={authMode}
+            />
+            <div className="flex justify-center gap-4">
+              <button
+                className={`py-2 px-4 rounded-lg font-semibold transition-colors ${authMode === 'login' ? 'bg-brand-primary text-white' : 'bg-gray-500 text-gray-light'}`}
+                onClick={() => setAuthMode('login')}
+              >
+                Login
+              </button>
+              <button
+                className={`py-2 px-4 rounded-lg font-semibold transition-colors ${authMode === 'signup' ? 'bg-brand-primary text-white' : 'bg-gray-500 text-gray-light'}`}
+                onClick={() => setAuthMode('signup')}
+              >
+                Sign Up
+              </button>
             </div>
-          </main>
+          </div>
         </div>
+      ) : (
+        <>
+          <ApiKeyModal
+            isOpen={isModalOpen}
+            onSave={handleSaveApiKey}
+            onClose={() => setIsModalOpen(false)}
+            isClosable={isInitialized}
+          />
+          <div className="min-h-screen bg-gray-dark font-sans text-gray-light">
+            <header className="py-4 px-8 bg-gray-medium/30 border-b border-gray-medium flex justify-between items-center">
+              <h1 className="text-3xl font-bold text-white tracking-wider">
+                <span className="text-brand-primary">Prompt</span> Engineering Challenge
+              </h1>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="py-2 px-4 bg-gray-medium hover:bg-gray-light/20 text-white text-sm font-semibold rounded-lg transition-colors"
+                  aria-label="Change API Key"
+                >
+                  Change API Key
+                </button>
+                <div className="relative inline-block text-left">
+                  <button
+                    className="flex items-center gap-2 py-2 px-4 bg-gray-medium hover:bg-gray-light/20 text-white text-sm font-semibold rounded-lg transition-colors focus:outline-none"
+                    onClick={() => setShowProfileDropdown((prev) => !prev)}
+                  >
+                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-brand-primary text-white font-bold text-lg">
+                      {user.email ? user.email[0].toUpperCase() : user.username[0].toUpperCase()}
+                    </span>
+                    <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {showProfileDropdown && (
+                    <div className="absolute right-0 mt-4 w-40 bg-gray-medium rounded-lg shadow-lg z-50" style={{ minWidth: '10rem' }}>
+                      <button
+                        className="w-full text-left px-4 py-2 text-sm text-white hover:bg-red-600 rounded-b-lg"
+                        onClick={() => { setShowProfileDropdown(false); handleLogout(); }}
+                      >
+                        🚪 Logout
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </header>
+            <main className="flex flex-col md:flex-row p-4 md:p-8 gap-8">
+              <aside className="w-full md:w-1/4 lg:w-1/5">
+                <ChallengeSelector
+                  challenges={CHALLENGES}
+                  statuses={challengeStatuses}
+                  currentChallengeId={currentChallenge.id}
+                  onSelectChallenge={handleSelectChallenge}
+                />
+              </aside>
+              <div className="flex-1">
+                {currentChallenge && (
+                  <ChallengeView
+                    challenge={currentChallenge}
+                    prompt={prompt}
+                    onPromptChange={setPrompt}
+                    onGenerate={handleGenerateAndAnalyze}
+                    isLoading={isLoading}
+                    loadingMessage={loadingMessage}
+                    generatedImage={generatedImage}
+                    analysisResult={analysisResult}
+                    error={error}
+                    onNextChallenge={handleNextChallenge}
+                    isPassed={!!analysisResult && analysisResult.similarityScore >= PASS_THRESHOLD}
+                  />
+                )}
+              </div>
+            </main>
+          </div>
+        </>
       )}
     </>
   );
