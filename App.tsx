@@ -4,7 +4,7 @@ import { Challenge, ChallengeStatus, AnalysisResult } from './types';
 import { CHALLENGES, PASS_THRESHOLD } from './constants';
 import ChallengeSelector from './components/ChallengeSelector';
 import ChallengeView from './components/ChallengeView';
-import { generateImage, analyzeImages, initializeAi } from './services/geminiService';
+import { generateImage, analyzeImages, initializeAi, ImageService } from './services/ApiService';
 
 interface ApiKeyModalProps {
   isOpen: boolean;
@@ -101,6 +101,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [loadingMessage, setLoadingMessage] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+  const [selectedService, setSelectedService] = useState<ImageService>('pollinations');
 
   useEffect(() => {
     // Check for API key and initialize
@@ -155,9 +156,9 @@ const App: React.FC = () => {
 
     try {
       setLoadingMessage('Generating your masterpiece...');
-      const imageB64 = await generateImage(prompt);
+      const imageB64 = await generateImage(prompt, selectedService);
       setGeneratedImage(`data:image/jpeg;base64,${imageB64}`);
-      
+
       setLoadingMessage('Analyzing visual similarity...');
       const currentChallenge = CHALLENGES[currentChallengeIndex];
       const result = await analyzeImages(currentChallenge, imageB64);
@@ -180,7 +181,7 @@ const App: React.FC = () => {
       setIsLoading(false);
       setLoadingMessage('');
     }
-  }, [prompt, currentChallengeIndex]);
+  }, [prompt, currentChallengeIndex, selectedService]);
 
   const handleSelectChallenge = (index: number) => {
     if (challengeStatuses[index] !== ChallengeStatus.LOCKED) {
@@ -229,13 +230,24 @@ const App: React.FC = () => {
             <h1 className="text-3xl font-bold text-white tracking-wider">
               <span className="text-brand-primary">Prompt</span> Engineering Challenge
             </h1>
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="py-2 px-4 bg-gray-medium hover:bg-gray-light/20 text-white text-sm font-semibold rounded-lg transition-colors"
-              aria-label="Change API Key"
-            >
-              Change API Key
-            </button>
+            <div className="flex items-center gap-4">
+              <select
+                id="image-service"
+                value={selectedService}
+                onChange={e => setSelectedService(e.target.value as ImageService)}
+                className="py-2 px-4  rounded-lg bg-gray-medium hover:bg-gray-dark text-white text-sm font-semibold transition-colors border-0 focus:outline-none"
+              >
+                <option value="pollinations">Pollinations AI</option>
+                <option value="gemini">Gemini</option>
+              </select>
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="py-2 px-4 bg-gray-medium hover:bg-gray-light/20 text-white text-sm font-semibold rounded-lg transition-colors"
+                aria-label="Change API Key"
+              >
+                Change API Key
+              </button>
+            </div>
           </header>
           <main className="flex flex-col md:flex-row p-4 md:p-8 gap-8">
             <aside className="w-full md:w-1/4 lg:w-1/5">

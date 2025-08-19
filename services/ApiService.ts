@@ -35,28 +35,44 @@ async function urlToGenerativePart(url: string, mimeType: string) {
   };
 }
 
-export const generateImage = async (prompt: string): Promise<string> => {
+export type ImageService = 'gemini' | 'pollinations';
+
+export const generateImage = async (prompt: string, service: ImageService = 'pollinations'): Promise<string> => {
   prompt = prompt + " Don't add any additional effects or styles";
-  try {
-    // Use Pollinations.ai for image generation
-    const encodedPrompt = encodeURIComponent(prompt);
-    const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?model=kontext`;
-    
-    // Fetch the image to ensure it's valid and convert to base64
-    const response = await fetch(imageUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to generate image: ${response.statusText}`);
+  if (service === 'pollinations') {
+    try {
+      const encodedPrompt = encodeURIComponent(prompt);
+      const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?model=kontext`;
+      const response = await fetch(imageUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to generate image: ${response.statusText}`);
+      }
+      const arrayBuffer = await response.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      const binaryString = Array.from(uint8Array).map((byte) => String.fromCharCode(byte)).join('');
+      const base64 = btoa(binaryString);
+      return base64;
+    } catch (error) {
+      console.error("Error in generateImage:", error);
+      throw new Error("Failed to generate image. Please check your prompt or internet connection.");
     }
-    
-    const arrayBuffer = await response.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
-    const binaryString = Array.from(uint8Array).map((byte) => String.fromCharCode(byte)).join('');
-    const base64 = btoa(binaryString);
-    
-    return base64;
-  } catch (error) {
-    console.error("Error in generateImage:", error);
-    throw new Error("Failed to generate image. Please check your prompt or internet connection.");
+  } else if (service === 'gemini') {
+    try {
+      const gemini = getAi();
+      const response: GenerateContentResponse = await gemini.models.generateContent({
+        model: 'gemini-2.0-pro-vision',
+        contents: { parts: [{ text: prompt }] },
+        config: { responseMimeType: 'image/jpeg' }
+      });
+      // Assume response contains base64 image data
+      if (!response.text) throw new Error('No image returned from Gemini');
+      return response.text;
+    } catch (error) {
+      console.error("Error in generateImage (Gemini):", error);
+      throw new Error("Failed to generate image with Gemini.");
+    }
+  } else {
+    throw new Error('Unknown image service selected');
   }
 };
 
