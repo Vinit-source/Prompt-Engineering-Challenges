@@ -1,3 +1,4 @@
+
 import { Challenge } from './types';
 
 export const PASS_THRESHOLD = 80;

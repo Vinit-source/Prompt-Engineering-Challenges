@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Challenge, AnalysisResult } from '../types';
 import Spinner from './Spinner';
-import { getLocalImageAsBlobUrl } from '../services/analysisService';
+import { getLocalImageAsBlobUrl } from '../services/ApiService';
 import SimilarityMeter from './SimilarityMeter';
 
 interface ChallengeViewProps {
@@ -18,8 +18,6 @@ interface ChallengeViewProps {
   isPassed: boolean;
   isNextChallengeAvailable: boolean;
   previousSimilarityScore: number;
-  isSpeaking: boolean;
-  onStopSpeaking: () => void;
 }
 
 const HudFrame: React.FC<{ children: React.ReactNode; title: string }> = ({ children, title }) => (
@@ -53,8 +51,6 @@ const ChallengeView: React.FC<ChallengeViewProps> = ({
   isPassed,
   isNextChallengeAvailable,
   previousSimilarityScore,
-  isSpeaking,
-  onStopSpeaking,
 }) => {
   const [targetImageSrc, setTargetImageSrc] = useState<string | null>(null);
 
@@ -79,16 +75,6 @@ const ChallengeView: React.FC<ChallengeViewProps> = ({
       }
     };
   }, [challenge.imageUrl]);
-
-  useEffect(() => {
-    // Cleanup function to stop speaking when the component unmounts
-    // or when the analysisResult changes (which would hide the feedback section).
-    return () => {
-      if (isSpeaking) {
-        onStopSpeaking();
-      }
-    };
-  }, [analysisResult, isSpeaking, onStopSpeaking]);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -184,32 +170,18 @@ const ChallengeView: React.FC<ChallengeViewProps> = ({
             </div>
           </div>
 
-          <div>
-            <div className="flex items-center gap-4 mb-2">
-              <h4 className="text-lg font-bold text-cyber-accent uppercase tracking-wider">Feedback Log</h4>
-              {analysisResult.feedback.length > 0 && (
-                <button
-                  onClick={onStopSpeaking}
-                  className="text-cyber-dim hover:text-cyber-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                  aria-label={isSpeaking ? "Stop speaking feedback" : "Feedback read automatically"}
-                  disabled={!isSpeaking}
-                >
-                  {isSpeaking ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 animate-pulse-fast" viewBox="0 0 24 24" fill="currentColor"><path d="M8 8h8v8H8z" /></svg>
-                  ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" /></svg>
-                  )}
-                </button>
-              )}
-            </div>
-            <ol className="list-decimal list-inside text-cyber-text space-y-2 font-sans">
+          <div className="flex items-center gap-4 mb-2">
+            <h4 className="text-lg font-bold text-cyber-accent uppercase tracking-wider">Feedback Log</h4>
+            
+            <ol className="list-decimal list-inside text-cyber-text space-y-2 mt-2 font-sans">
               {analysisResult.feedback.map((item, index) => (
                 <li 
                   key={index} 
-                  className={`border-b border-cyber-dim/20 pb-1 transition-all duration-300 ${isSpeaking ? 'text-cyber-primary' : ''}`}
+                  className="border-b border-cyber-dim/20 pb-1"
                 >
                   {item}
                 </li>
+                
               ))}
             </ol>
           </div>

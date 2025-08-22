@@ -1,4 +1,26 @@
-import { getAi } from './analysisService';
+import { GoogleGenAI } from "@google/genai";
+
+// --- AI Client Initialization ---
+let ai: GoogleGenAI | null = null;
+
+export const initializeAi = (apiKey: string) => {
+  if (!apiKey) {
+    throw new Error("An API key is required to initialize the AI service.");
+  }
+  ai = new GoogleGenAI({ apiKey });
+};
+
+export const getAi = (): GoogleGenAI => {
+  if (!ai) {
+    if (process.env.API_KEY) {
+      initializeAi(process.env.API_KEY);
+      return ai!;
+    }
+    throw new Error("Gemini AI client has not been initialized. Please provide an API key.");
+  }
+  return ai;
+};
+
 
 export type ImageService = 'gemini' | 'pollinations';
 
@@ -46,5 +68,27 @@ export const generateImage = async (prompt: string, service: ImageService = 'pol
     }
   } else {
     throw new Error('Unknown image service selected');
+  }
+};
+
+/**
+ * Fetches an image from a local URL and returns it as a blob URL.
+ * This is useful for ensuring images are loaded and displayed correctly
+ * when relative paths might be problematic.
+ * @param url The local URL of the image (e.g., '/challenges/challenge-1.jpg')
+ * @returns A promise that resolves to a blob URL (e.g., 'blob:http://...')
+ */
+export const getLocalImageAsBlobUrl = async (url: string): Promise<string> => {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image from URL: ${url}. Status: ${response.statusText}`);
+    }
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
+  } catch (error) {
+    console.error(`Error fetching local image ${url}:`, error);
+    // Fallback to the original URL if fetching fails, allowing the browser to try and load it directly.
+    return url;
   }
 };
